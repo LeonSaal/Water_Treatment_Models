@@ -729,7 +729,7 @@ def server(input, output, session):
     @reactive.event(input.adsa_run)
     def adsa_res():
         adsa = adsa_run()
-        return render.DataTable(adsa)
+        return render.DataTable(adsa.round(2))
 
     @render_widget
     @reactive.event(input.adsa_run)
@@ -839,7 +839,7 @@ def server(input, output, session):
     @reactive.event(input.trm_run)
     def trm_res_df():
         trm = trm_res()
-        return render.DataTable(trm)
+        return render.DataTable(trm.round(2))
     
     @reactive.effect
     @reactive.event(input.trm_accept)
