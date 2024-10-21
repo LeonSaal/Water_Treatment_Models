@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools"]
+
+[project]
+name = "NOMAds"
+version = "1.0"
+dependencies = [
+    "pandas[plot, computation, excel]",
+    "molmass",
+    "pint",
+    "ipykernel",
+    "seaborn"
+]
+requires-python = ">=3.8"
+authors = [
+  {name = "Leon Saal"},
+]
+description = "Package to model competitve NOM adsorption."
+readme = "README.md"
+license = {file = "LICENSE.txt"}
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python"
+]
+

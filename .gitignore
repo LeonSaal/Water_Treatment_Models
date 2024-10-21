@@ -22,3 +22,10 @@ Shiny-IEX/.RData
 Shiny-IEX/.Rhistory
 Shiny-GAC/.Rhistory
 Shiny-GAC/.RData
+PSDM/PSDM.egg-info/*
+PSDM/PSDM/PSDM.egg-info/*
+*.xlsx
+*.ipynb
+nötig.png
+*/*.egg-info/
+*.code-workspace

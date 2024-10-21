@@ -1,0 +1,9 @@
+shiny
+shinywidgets
+plotly
+faicons
+molmass
+pint
+./IonExchangeModel
+-e ./PSDM
+./NOMAds

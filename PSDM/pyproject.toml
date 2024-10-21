@@ -1,0 +1,13 @@
+[project]
+name = "PSDM"
+authors = [{name = "Jonathan Burkhardt"}, {name="Levi Haupert"}]
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas[excel,computation, plot, performance]"
+]
+
+
+[tool.setuptools.packages.find]
+where = ["PSDM"]
+include = ["PSDM*"]

@@ -209,7 +209,7 @@ class PSDM():
         #calculate other fixed values
         self.area = np.pi*(self.diam**2)/4.
         self.bedvol = self.area * self.L
-        self.ebed = 1. - self.wt/(self.bedvol*self.rhop)
+        self.ebed = 1. - self.rhop/ self.rhof#self.wt/(self.bedvol*self.rhop)
         self.tau = self.bedvol * self.ebed * 60./self.flrt
         self.sf = 0.245423867471 * self.flrt/self.area # gpm/ft**2
         self.vs = self.flrt/(60.*self.area)
