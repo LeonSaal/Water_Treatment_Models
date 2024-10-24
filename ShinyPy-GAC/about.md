@@ -16,12 +16,13 @@ Underlying numerical tools implemented in Python have been developed by the [US 
 - [IonExchangeModel](https://github.com/USEPA/Water_Treatment_Models/tree/master/IonExchangeModel) for IX simulation
 - [PSDM](https://github.com/USEPA/Water_Treatment_Models/tree/master/PSDM) for GAC simulation
 
-The original PSDM and the IX model by the EPA were slightly modified to fit the purpose of the DWTDT: 
+The original PSDM and the IX model by the EPA were slightly modified to fit the purpose of the DWTDT:
+
 The empirical correlation for the liquid phase diffusivity ($D_L$ in m²/s) was changed to account for fictive NOM components with no known molar volume from 
 - [Hayduk & Laudie (1974)](https://doi.org/10.1002/aic.690200329):
 $D_L = \frac{13.26\cdot 10^{-5}}{\eta^{1.14}\cdot V_b^{0.589}}$ 
 - to [Worch (1993)](https://isbnsearch.org/isbn/9783527285662):
-$D_L = \frac{3.595\cdot 10^{-14} \cdot T}{\eta\cdot M^{0.53}}$
+$D_L = \frac{3.595\cdot 10^{-9} \cdot T}{\eta\cdot M^{0.53}}$
 
 with dynamic viscosity $\eta$, molar Volume $V_b$, temperature $T$ (in K) and molar mass $M$
 
@@ -30,18 +31,16 @@ with dynamic viscosity $\eta$, molar Volume $V_b$, temperature $T$ (in K) and mo
 - The user interface of the DWTDT was developed using [Shiny for Python](https://shiny.posit.co/py/)
 - Unit conversion in the DWTDT is performed using [Pint](https://pint.readthedocs.io/en/stable/)
 - Chemical calculations in the DWTDT tool are performed using [molmass](https://github.com/cgohlke/molmass)
+- [plotly](https://plotly.com/python-api-reference/) for visualization
 
 # License
 The DWTDT can be used under license of the [MIT](https://github.com/USEPA/Water_Treatment_Models/blob/master/LICENSE.md)
 
-
-
-
 # Imprint
-Leon Saal (German Environmental Protection Agency), Fiona Rückbeil (Berliner Wasserbetriebe), Alexander Sperlich (Berliner Wasserbetriebe)
+Leon Saal (German Environment Agency), Fiona Rückbeil (Berliner Wasserbetriebe), Alexander Sperlich (Berliner Wasserbetriebe)
 
 The DWTDT was developed within [PROMISCES](https://promisces.eu/) (**P**reventing **R**ecalcitrant **O**rganic **M**obile **I**ndustrial chemical**S** for **C**ircular **E**conomy in the **S**oil-sediment-water system). 
-The PROMISCES project has received funding from the European Union Horizon 2020 research programme under grant agreement N°101036449.
+The PROMISCES project has received funding from the European Union Horizon 2020 research programme under grant agreement [N°101036449](https://doi.org/10.3030/101036449).
 
 
 

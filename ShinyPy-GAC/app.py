@@ -21,11 +21,6 @@ from win32api import GetSystemMetrics
 from faicons import icon_svg
 from pathlib import Path
 
-# from markdown_it.main import MarkdownIt
-# from mdit_py_plugins.dollarmath import dollarmath_plugin
-
-# md_render = MarkdownIt("gfm-like").use(dollarmath_plugin)
-
 ################
 # Layout
 ################
@@ -112,19 +107,19 @@ import_panel = ui.nav_panel(
 
 
 adsorbent_mask = {
-    "ads_rad": {"tag": "Particle Radius", "value": 0, "unit": "length"},
+    "ads_rad": {"tag": "Particle Radius $d_p$", "value": 0, "unit": "length"},
     "ads_epor": {
-        "tag": "Bed Porosity",
+        "tag": "Bed Porosity $\\epsilon$",
         "value": 0.5,
         "unit": None,
         "min": 0,
         "max": 1,
         "step": 0.1,
     },
-    "ads_rhof": {"tag": "Particle Density", "value": 0, "unit": "density"},
-    "ads_rhop": {"tag": "Apparent Density", "value": 0, "unit": "density"},
+    "ads_rhof": {"tag": "Particle Density $\\rho_f$", "value": 0, "unit": "density"},
+    "ads_rhop": {"tag": "Apparent Density $\\rho_p$", "value": 0, "unit": "density"},
     "ads_Q": {
-        "tag": tooltip("Capacity Q", "only relevant for IX"),
+        "tag": tooltip("Capacity $Q$", "only relevant for IX"),
         "value": 0,
         "unit": "molar_equivalent",
     },
@@ -215,7 +210,18 @@ column_panel = ui.nav_panel(
 
 compounds_mask = {
     "comp_MW": {"tag": "Molar Weight", "value": 0, "unit": "molar_weight"},
-    "comp_MolarVol": {
+
+    "comp_valence": {
+        "tag": tooltip("Valence", "only needed for IX"),
+        "value": 1,
+        "unit": None,
+        "max": 3,
+        "min": 1,
+    },
+}
+
+compounds_mask_adv = {
+        "comp_MolarVol": {
         "tag": tooltip("Molar Volume", "needed for empirical correlation"),
         "value": 0,
         "unit": "molar_volume",
@@ -230,16 +236,6 @@ compounds_mask = {
         "value": 0,
         "unit": "density",
     },
-    "comp_valence": {
-        "tag": tooltip("Valence", "only needed for IX"),
-        "value": 1,
-        "unit": None,
-        "max": 3,
-        "min": 1,
-    },
-}
-
-compounds_mask_adv = {
     # "comp_Solubility": {"tag": "Solubility", "value": 0, "unit": "concentration"},
     # "comp_VaporPress": {"tag": "Vapor Pressure", "value": 0, "unit": "pressure"},
 }
@@ -259,7 +255,7 @@ adsprop_mask = {
     },
 }
 
-adsprop_mask_adv = compounds_mask_adv = {
+adsprop_mask_adv = {
     "adsprop_kf": {
         "tag": tooltip(HTML("k<sub>f</sub>"), "Film Transfer Diffusion Coefficient"),
         "value": 0,
@@ -286,7 +282,15 @@ adsorbate_panel = ui.nav_panel(
                 ui.column(6, ui.input_text("comp_formula", "Formula", "")),
             ),
             *input_mask(compounds_mask),
+            ui.accordion(
+                ui.accordion_panel(
+                    "Other",
+                    *input_mask(compounds_mask_adv),
+                ),
+                open=False,
+            ),
             ui.input_action_button("add_comp", "Add/Update Compound"),
+            
         ),
         ui.card(
             ui.input_select("sel_comp", "Compound Selection", [], size=5),
@@ -608,9 +612,9 @@ simul_tab = ui.navset_tab(
             )
         ),
         ui.card(
-            ui.input_slider("sim_nr", "Radial Collocation Points", 3, 18, 7),
-            ui.input_slider("sim_nz", "Axial Collocation Points", 3, 18, 12),
-            ui.input_slider("sim_ne", "Number of finite Elements", 1, 100, 1),
+            ui.input_slider("sim_nr", "Radial Collocation Points $n_r$", 3, 18, 7),
+            ui.input_slider("sim_nz", "Axial Collocation Points $n_z$", 3, 18, 12),
+            ui.input_slider("sim_ne", "Number of finite Elements $n_e$", 1, 100, 1),
             ui.input_task_button("run", "Run Analyses"),
             ui.download_button("sim_save", "Save Results"),
         ),
@@ -661,7 +665,9 @@ app_ui = ui.page_navbar(
         ui.tags.script(
             "if (window.MathJax) MathJax.Hub.Queue(['Typeset', MathJax.Hub]);"
         ),
-        ui.tags.script("if (window.MathJax) MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$']]}});")
+        ui.tags.script(
+            "if (window.MathJax) MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$']]}});"
+        ),
     ),
     ui.nav_panel(
         ui.span("About ", icon_svg("circle-info")),
@@ -1545,10 +1551,16 @@ def server(input, output, session):
             ):
                 p.set(i, message=f"Calculating {scenario!r}")
                 scenario_adsorbates = scenario_data["adsorbates"]
-                # if scenario in simulations:
-                #     continue
-
-                simulations.update({scenario: {"steps": {}}})
+                simulation = {
+                    "settings": {
+                        "nr": input.sim_nr(),
+                        "nz": input.sim_nz(),
+                        "ne": input.sim_ne(),
+                        **scenario_data,
+                    },
+                    "steps": {},
+                }
+                simulations.update({scenario: simulation})
 
                 # iterate over processing steps
                 with ui.Progress(max=len(scenario_data["steps"])) as pstep:
@@ -1747,6 +1759,7 @@ def server(input, output, session):
                 for simulation, sim_data in simulations.items():
                     if not simulation in input.sel_run_scenario():
                         continue
+
                     with io.BytesIO() as buf:
                         with pd.ExcelWriter(buf) as sheets:
                             for step, step_data in sim_data["steps"].items():
@@ -1755,6 +1768,11 @@ def server(input, output, session):
                                 )
                         safe_name = re.sub(r"[^\w_.)( -]", "_", simulation)
                         zip.writestr(f"{safe_name}.xlsx", buf.getvalue())
+
+                with io.StringIO() as buf:
+                    json.dump({simulation: data["settings"] for simulation, data in simulations.items()}, buf, indent="\t")
+                    zip.writestr("settings.json", buf.getvalue())
+
             yield zipbuf.getvalue()
 
     def save_inputs(*dfs, scenario, step):
