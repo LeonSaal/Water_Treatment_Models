@@ -242,7 +242,7 @@ compounds_mask_adv = {
 
 adsprop_mask = {
     "adsprop_K": {
-        "tag": tooltip("K", "Freundlich Ki (GAC) or selectivity (IX)"),
+        "tag": tooltip("K", "Freundlich $K_i$ (GAC) or selectivity (IX)"),
         "value": 0,
         "unit": "K",
     },
@@ -372,8 +372,8 @@ adsa_panel = ui.accordion_panel(
                 ),
                 ui.input_numeric("adsa_MW", "", 1000),
                 ui.tooltip(
-                    ui.span("Input Ki Values", " ", icon_svg("circle-question")),
-                    "Enter or select the Ki values of the fictive components. 3-5 components are recommended.",
+                    ui.span("Input $K_i$ Values", " ", icon_svg("circle-question")),
+                    "Enter or select the $K_i$ values of the fictive components. 3-5 components are recommended.",
                     id="adsa_k_tooltip",
                 ),
                 ui.input_selectize(
@@ -395,7 +395,7 @@ adsa_panel = ui.accordion_panel(
                 ),
                 ui.input_numeric("adsa_n", "", 0.25),
                 ui.input_task_button("adsa_run", "Run ADSA"),
-                col_widths=(6, 6),
+                col_widths=(5, 3),
             ),
         ),
         ui.card(
@@ -406,7 +406,7 @@ adsa_panel = ui.accordion_panel(
             ),
             full_screen=True,
         ),
-        col_widths=(3, 7),
+        col_widths=(4, 6),
     ),
 )
 
@@ -436,7 +436,8 @@ trm_panel = ui.accordion_panel(
             ),
             full_screen=True,
         ),
-    ),
+        col_widths=(4, 6)
+    ), 
 )
 
 nom_panel = ui.nav_panel(
@@ -485,7 +486,7 @@ data_panel = ui.nav_panel(
                     "data_file",
                     ui.tooltip(
                         ui.span(
-                            "Select .xlsx file with influent and (optional) effluent data of your adsorber.",
+                            "Select .xlsx file with influent and (optional) effluent data of your adsorber",
                             " ",
                             icon_svg("circle-question"),
                         ),
@@ -547,7 +548,7 @@ treatment_train_panel = ui.nav_panel(
                             "scenario_chem_type",
                             tooltip(
                                 "Chemical Type",
-                                "empirical correlation to adjust Freundlich's Ki over time",
+                                "empirical correlation to adjust Freundlich's $K_i$ over time",
                             ),
                             list(foul_params["chemical"].keys()),
                             selected="PFAS",
@@ -757,6 +758,11 @@ def server(input, output, session):
     ################
     # Load/ Save data
     ################
+    @reactive.effect
+    @reactive.event(input.project_name)
+    def _():
+        ui.update_text("project_name", value=re.sub(r"[^\w_.)( -]", "", input.project_name()))
+
     @render.download(filename=lambda: f"{input.project_name()}.json")
     def save_data():
         output = {
