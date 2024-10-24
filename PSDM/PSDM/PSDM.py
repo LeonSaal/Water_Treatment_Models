@@ -1309,7 +1309,8 @@ class PSDM():
         psdfr = self.psdfr                             # pore to surface diffusion ratio
         nd = nc - 1
         
-        difl = 13.26e-5/(((vw * 100.)**1.14)*(mol_vol**0.589)) #vb
+        #difl = 13.26e-5/(((vw * 100.)**1.14)*(mol_vol**0.589)) #was replaced by Worch correlation
+        difl = ((3.595 * 1e-14 * (self.temp+273.15))/(vw/10 * mw ** (0.53)))*10000. 
         sc = vw / (dw * difl)       #schmidt number
         
         #set film and pore diffusion
@@ -1711,7 +1712,8 @@ class PSDM():
 
         cb0 = self.data_df[self.influent, compound][0] * self.mass_mul / mw
 
-        difl = 13.26e-5/(((self.vw * 100.)**1.14)*(mol_vol**0.589)) #vb
+        #difl = 13.26e-5/(((self.vw * 100.)**1.14)*(mol_vol**0.589)) #vb replaced by Worch correlation
+        difl = ((3.595 * 1e-14 * (self.temp + 273.15))/(self.vw/10 * mw ** (0.53)))*10000.
         ds_base = self.epor * difl * cb0 * self.psdfr / (1e3 * self.rhop * cb0**self.k_data[compound]['1/n'])
 
         # tests = self.test_range

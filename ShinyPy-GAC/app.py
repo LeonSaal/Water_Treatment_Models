@@ -21,6 +21,11 @@ from win32api import GetSystemMetrics
 from faicons import icon_svg
 from pathlib import Path
 
+# from markdown_it.main import MarkdownIt
+# from mdit_py_plugins.dollarmath import dollarmath_plugin
+
+# md_render = MarkdownIt("gfm-like").use(dollarmath_plugin)
+
 ################
 # Layout
 ################
@@ -32,11 +37,12 @@ WIDTH_BUTTON = "400px"
 def tooltip(name, tip, id=None):
     return ui.tooltip(ui.span(name, " ", icon_svg("circle-question")), tip, id=id)
 
-if (p:=Path(__file__).parent / "about.md").exists():
-    with open(p) as file:
-        about_md ="".join(file.readlines())
+
+if (p := Path(__file__).parent / "about.md").exists():
+    with open(p, encoding="utf-8") as file:
+        about_md = "".join(file.readlines())
 else:
-    about_md=""
+    about_md = ""
 
 msgs = {
     "no_adsprops": "<h4>Scenario: {scenario!r} step {step}:</h4>No <b>Adsorption Properties</b> for Adsorbent {adsorbent_name!r} and Adsorbates {adsorbate_names}. <br>Skipping"
@@ -53,6 +59,7 @@ units = {
     "molar_weight": ["g/mol"],
     "molar_volume": ["mol/L"],
     "diffusivity": ["cm2/s"],
+    "film_mass_transfer": ["cm/s"],
     "K": [
         "(ug/g)/((ug/L)**{n})",
         "(ug/mg)/((ug/L)**{n})",
@@ -96,7 +103,7 @@ import_panel = ui.nav_panel(
     ui.span("Import / Export ", icon_svg("file-import")),
     ui.input_file(
         "import_data",
-        tooltip("Load Input Data", "previously saved .json file(s)"),
+        tooltip("Load project file", "previously saved .json file(s)"),
         accept=[".json"],
         multiple=True,
     ),
@@ -190,17 +197,17 @@ column_mask = {
     "col_temp": {"tag": "Temperature", "value": 20, "unit": "temperature", "max": 50},
 }
 column_panel = ui.nav_panel(
-    ui.span("Column Specifications ", icon_svg("up-down-left-right")),
+    ui.span("Adsorber Specifications ", icon_svg("up-down-left-right")),
     ui.layout_columns(
         ui.card(
-            ui.row(ui.input_text("col_name", "Column Name", "Column 0")),
+            ui.row(ui.input_text("col_name", "Adsorber Name", "Column 0")),
             *input_mask(column_mask),
-            ui.row(ui.input_action_button("add_col", "Add/Update Column")),
+            ui.row(ui.input_action_button("add_col", "Add/Update Adsorber")),
         ),
         ui.card(
-            ui.input_select("sel_col", "Column Selection", [], size=5),
-            ui.input_action_button("load_col", "Load Column", width=WIDTH_BUTTON),
-            ui.input_action_button("del_col", "Delete Column", width=WIDTH_BUTTON),
+            ui.input_select("sel_col", "Adsorber Selection", [], size=5),
+            ui.input_action_button("load_col", "Load Adsorber", width=WIDTH_BUTTON),
+            ui.input_action_button("del_col", "Delete Adsorber", width=WIDTH_BUTTON),
         ),
         col_widths=(4, 5),
     ),
@@ -239,12 +246,12 @@ compounds_mask_adv = {
 
 adsprop_mask = {
     "adsprop_K": {
-        "tag": tooltip("K", "Freundlichs K (GAC) or selectivity (IX)"),
+        "tag": tooltip("K", "Freundlich Ki (GAC) or selectivity (IX)"),
         "value": 0,
         "unit": "K",
     },
     "adsprop_n": {
-        "tag": tooltip("n", "Freundlichs n (GAC)"),
+        "tag": tooltip("n", "Freundlich exponent (GAC)"),
         "value": 0.5,
         "unit": None,
         "max": 1,
@@ -256,7 +263,7 @@ adsprop_mask_adv = compounds_mask_adv = {
     "adsprop_kf": {
         "tag": tooltip(HTML("k<sub>f</sub>"), "Film Transfer Diffusion Coefficient"),
         "value": 0,
-        "unit": "velocity",
+        "unit": "film_mass_transfer",
     },
     "adsprop_dp": {
         "tag": tooltip(HTML("D<sub>P</sub>"), "Pore Diffusivity"),
@@ -289,6 +296,7 @@ adsorbate_panel = ui.nav_panel(
     ),
 )
 
+
 adsprop_panel = ui.nav_panel(
     ui.span("Adsorption Properties ", icon_svg("right-left")),
     ui.layout_columns(
@@ -299,7 +307,15 @@ adsprop_panel = ui.nav_panel(
             ),
             *input_mask(adsprop_mask),
             ui.accordion(
-                ui.accordion_panel("Advanced", *input_mask(adsprop_mask_adv)),
+                ui.accordion_panel(
+                    tooltip(
+                        "Advanced",
+                        "only needed if kinetic paramters should not be derived from empirical equations (default).",
+                        id="advanced_tooltip",
+                    ),
+                    *input_mask(adsprop_mask_adv),
+                    value="advanced_panel",
+                ),
                 open=False,
             ),
             ui.input_action_button("add_adsprop", "Add/Update Properties"),
@@ -320,29 +336,46 @@ adsprop_panel = ui.nav_panel(
     ),
 )
 
-
 adsa_panel = ui.accordion_panel(
     "Adsorption Analysis",
     ui.layout_columns(
         ui.card(
             ui.input_file(
                 "adsa_file",
-                tooltip(
-                    "Select File with NOM isotherm",
-                    "must have columns 'm' (adsorbent dosage in g/L) and 'c' (residual NOM in mg/L)",
+                ui.tooltip(
+                    ui.span(
+                        "Select .xlsx file with DOC isotherm",
+                        " ",
+                        icon_svg("circle-question"),
+                    ),
+                    "Must have columns 'm' (adsorbent dosage in g/L) and 'c' (residual DOC in mg/L)",
+                    id="adsa_file_tooltip",
                 ),
                 accept=[".xlsx"],
                 multiple=False,
             ),
             ui.layout_columns(
-                ui.input_select("adsa_adsorbent", "Adsorbent", []),
-                ui.input_numeric(
-                    "adsa_MW", "Input Molecular Weight of fictive components", 1000
+                ui.tooltip(
+                    ui.span("Adsorbent", " ", icon_svg("circle-question")),
+                    "Select the type of adsorbent you are analyzing.",
+                    id="adsa_adsorbent_tooltip",
+                ),
+                ui.input_select("adsa_adsorbent", "", []),
+                ui.tooltip(
+                    ui.span("Input Molecular Weight", " ", icon_svg("circle-question")),
+                    "Select the mean molecular weight of the fictive components in g/mol. A size range of 500-1500 mg/L is recommended.",
+                    id="adsa_MW_tooltip",
+                ),
+                ui.input_numeric("adsa_MW", "", 1000),
+                ui.tooltip(
+                    ui.span("Input Ki Values", " ", icon_svg("circle-question")),
+                    "Enter or select the Ki values of the fictive components. 3-5 components are recommended.",
+                    id="adsa_k_tooltip",
                 ),
                 ui.input_selectize(
                     "adsa_k",
-                    "Input K Values",
-                    choices=[0, 20, 40, 60],
+                    "",
+                    choices=[1, 20, 40, 60],
                     multiple=True,
                     options=(
                         {
@@ -351,7 +384,12 @@ adsa_panel = ui.accordion_panel(
                         }
                     ),
                 ),
-                ui.input_numeric("adsa_n", "Input n", 0.25),
+                ui.tooltip(
+                    ui.span("Input n", " ", icon_svg("circle-question")),
+                    "Enter the Freundlich exponent n of the fictive components (typically between 0.1 and 1; the same for all components).",
+                    id="adsa_n_tooltip",
+                ),
+                ui.input_numeric("adsa_n", "", 0.25),
                 ui.input_task_button("adsa_run", "Run ADSA"),
                 col_widths=(6, 6),
             ),
@@ -362,7 +400,8 @@ adsa_panel = ui.accordion_panel(
                 ui.nav_panel("Input", ui.output_data_frame("adsa_df")),
                 ui.nav_panel("Output", ui.output_data_frame("adsa_res")),
             ),
-        full_screen=True),
+            full_screen=True,
+        ),
         col_widths=(3, 7),
     ),
 )
@@ -375,7 +414,7 @@ trm_panel = ui.accordion_panel(
             ui.input_file(
                 "trm_file",
                 tooltip(
-                    "Select File with Isotherm in NOM presence",
+                    "Select File with Isotherm in DOC presence",
                     "must have columns 'm' (Adsorbent dosage in g/L) and 'c' (Adsorbate concentration in ug/L)",
                 ),
                 accept=[".xlsx"],
@@ -386,25 +425,75 @@ trm_panel = ui.accordion_panel(
                 tooltip("Adopt Output", "This will overwrite Adsorption Properties"),
             ),
         ),
-        ui.card(ui.navset_tab(
+        ui.card(
+            ui.navset_tab(
                 ui.nav_panel("Plot", output_widget("trm_plot")),
                 ui.nav_panel("Output", ui.output_data_frame("trm_res_df")),
-            ), full_screen=True),
+            ),
+            full_screen=True,
+        ),
     ),
 )
 
-nom_panel = ui.nav_panel(ui.span("NOM ", icon_svg("glass-water")), ui.accordion(adsa_panel, trm_panel))
+nom_panel = ui.nav_panel(
+    ui.span("DOM ", icon_svg("glass-water")), ui.accordion(adsa_panel, trm_panel)
+)
+
+# data_panel = ui.nav_panel(
+#     ui.span("Data ", icon_svg("table")),
+#     ui.row(
+#         ui.column(
+#             3,
+#             ui.input_file("data_file", None, accept=".xlsx"),
+#             ui.input_select("data_time_type", "Time Unit", [], selected=""),
+#             ui.input_select(
+#                 "data_conc_type", "Concentration Unit", [], selected=""
+#             ),
+#         ),
+#         ui.column(
+#             3,
+#             ui.input_action_button("data_reset", "Reset Data"),
+#             ui.input_select("data_influentID", "Influent Keyword", []),
+#             ui.input_select("data_effluentID", "Effluent Keyword", []),
+#         ),
+#     ),
+#     ui.accordion(
+#         ui.accordion_panel(
+#             "Influent Data",
+#             ui.output_data_frame("infl_df"),
+#         ),
+#         ui.accordion_panel(
+#             "Effluent Data",
+#             ui.output_data_frame("effl_df"),
+#         ),
+#     ),
+#     value="data_panel",
+# )
+
 
 data_panel = ui.nav_panel(
     ui.span("Data ", icon_svg("table")),
     ui.row(
         ui.column(
             3,
-            ui.input_file("data_file", None, accept=".xlsx"),
-            ui.input_select("data_time_type", "Time Unit", [], selected=""),
-            ui.input_select(
-                "data_conc_type", "Concentration Unit", [], selected=""
+            ui.card(
+                ui.input_file(
+                    "data_file",
+                    ui.tooltip(
+                        ui.span(
+                            "Select .xlsx file with influent and (optional) effluent data of your adsorber.",
+                            " ",
+                            icon_svg("circle-question"),
+                        ),
+                        " The .xlsx file should contain the following columns:  'time', 'concentration', 'key', 'step'",
+                        id="data_file_tooltip",
+                    ),
+                    accept=[".xlsx"],
+                    multiple=False,
+                )
             ),
+            ui.input_select("data_time_type", "Time Unit", [], selected=""),
+            ui.input_select("data_conc_type", "Concentration Unit", [], selected=""),
         ),
         ui.column(
             3,
@@ -446,7 +535,7 @@ treatment_train_panel = ui.nav_panel(
                             "scenario_water_type",
                             tooltip(
                                 "Water Type",
-                                "empirical correlation to adjust tortuosity over time",
+                                "empirical correlation to adjust tortuosity over time. Please choose 'organic free' when using the TRM.",
                             ),
                             list(foul_params["water"].keys()),
                         ),
@@ -454,7 +543,7 @@ treatment_train_panel = ui.nav_panel(
                             "scenario_chem_type",
                             tooltip(
                                 "Chemical Type",
-                                "empirical correlation to adjust Freundlich's K over time",
+                                "empirical correlation to adjust Freundlich's Ki over time",
                             ),
                             list(foul_params["chemical"].keys()),
                             selected="PFAS",
@@ -512,7 +601,10 @@ simul_tab = ui.navset_tab(
         ui.span("Setup ", icon_svg("sliders")),
         ui.card(
             ui.input_select(
-                "sel_run_scenario", "Select Scenarios to Simulate / Save Results from", [], multiple=True
+                "sel_run_scenario",
+                "Select Scenarios to Simulate / Save Results from",
+                [],
+                multiple=True,
             )
         ),
         ui.card(
@@ -536,6 +628,17 @@ simul_tab = ui.navset_tab(
                         inline=True,
                     ),
                     ui.input_checkbox("simplot_marker", "Draw Marker", True),
+                    ui.input_checkbox("simplot_overlay", "Overlay Scenarios", False),
+                    ui.input_select(
+                        "simplot_color",
+                        "Color variable",
+                        ["compound", "scenario", "type"],
+                    ),
+                    ui.input_select(
+                        "simplot_dash",
+                        "Dash variable",
+                        ["type", "compound", "scenario"],
+                    ),
                     title="Adjust Plot",
                     placement="top",
                 ),
@@ -548,17 +651,32 @@ simul_tab = ui.navset_tab(
 )
 
 app_ui = ui.page_navbar(
-    ui.nav_panel(ui.span("About ", icon_svg("circle-info")),
-                 ui.markdown(about_md)), 
+    ui.head_content(
+        # https://docs.mathjax.org/en/v2.7-latest/configuration.html
+        # https://shinylive.io/py/editor/#regularization
+        # https://docs.mathjax.org/en/v2.7-latest/start.html?highlight=inline#tex-and-latex-input-1
+        ui.tags.script(
+            src="https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+        ),
+        ui.tags.script(
+            "if (window.MathJax) MathJax.Hub.Queue(['Typeset', MathJax.Hub]);"
+        ),
+        ui.tags.script("if (window.MathJax) MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$']]}});")
+    ),
+    ui.nav_panel(
+        ui.span("About ", icon_svg("circle-info")),
+        ui.markdown(about_md),
+    ),
     ui.nav_panel(
         ui.span("Input Data ", icon_svg("gears")),
         ui.input_text("project_name", "Project Name", "Project 0"),
         input_tab,
         value="input_tab",
     ),
-    ui.nav_panel(ui.span("Simulation ", icon_svg("spinner")), simul_tab, value="sim_tab"),
-    
-    title="Test",
+    ui.nav_panel(
+        ui.span("Simulation ", icon_svg("spinner")), simul_tab, value="sim_tab"
+    ),
+    title="Drinking Water Treatment and Design Tool",
     fillable=True,
     id="page",
 )
@@ -778,9 +896,13 @@ def server(input, output, session):
         data = trm_file().copy()
         if data.empty:
             return
-        
+
         # convert MP concentration to mgC/L
-        data.c = data.c * mass_to_massC_or_mol("ug/L", "mgC/L", formula = compounds().get(input.trm_adsorbate())["comp_formula"])
+        data.c = data.c * mass_to_massC_or_mol(
+            "ug/L",
+            "mgC/L",
+            formula=compounds().get(input.trm_adsorbate())["comp_formula"],
+        )
         c0MP = data.c[data.m == 0].values
         cMPs = data.c[data.m > 0].values
         ms = data.m[data.m > 0].values
@@ -840,11 +962,16 @@ def server(input, output, session):
     def trm_res_df():
         trm = trm_res()
         return render.DataTable(trm.round(2))
-    
+
     @reactive.effect
     @reactive.event(input.trm_accept)
     def _():
-        if ((not input.adsa_adsorbent()) | (not input.trm_adsorbate()) | (not input.adsa_k()) | (trm_file().empty)):
+        if (
+            (not input.adsa_adsorbent())
+            | (not input.trm_adsorbate())
+            | (not input.adsa_k())
+            | (trm_file().empty)
+        ):
             ui.notification_show("Incomplete Input!", type="error", duration=None)
             return
         ureg = UnitRegistry()
@@ -878,7 +1005,9 @@ def server(input, output, session):
                 "adsprop_kf_unit": "cm/s",
                 "adsprop_dp_unit": "cm2/s",
                 "adsprop_ds_unit": "cm2/s",
-                "adsprop_K": convert_K(float(K), n, "(mg/g)/((mg/L)**{n})", "(ug/g)/((ug/L)**{n})"),
+                "adsprop_K": convert_K(
+                    float(K), n, "(mg/g)/((mg/L)**{n})", "(ug/g)/((ug/L)**{n})"
+                ),
                 "adsprop_n": n,
                 "adsprop_kf": 0,
                 "adsprop_dp": 0,
@@ -900,7 +1029,10 @@ def server(input, output, session):
             ui.update_select("data_conc_type", choices=["ug/L"], selected="ug/L")
 
         tracer_df.concentration = (
-            c0sDOC * ureg("mg/L").to(input.data_conc_type() if input.data_conc_type() else "ug/L").magnitude
+            c0sDOC
+            * ureg("mg/L")
+            .to(input.data_conc_type() if input.data_conc_type() else "ug/L")
+            .magnitude
         )
         tracer_df.compound = [tracer_mask.format(i=i) for i in range(len(Ks))]
         tracer_df.time = 0
@@ -1350,7 +1482,6 @@ def server(input, output, session):
         ui.update_select("data_time_type", selected="")
         ui.update_select("data_conc_type", selected="")
 
-
     @render.data_frame
     def infl_df():
         return render.DataTable(
@@ -1372,7 +1503,7 @@ def server(input, output, session):
     async def _():
         nonlocal simulations
         scenario_sel = input.sel_run_scenario()
-        
+
         # guard 1
         if not scenario_sel:
             m = ui.modal(
@@ -1386,17 +1517,20 @@ def server(input, output, session):
                 ui.update_navs("page", selected="input_tab")
                 ui.update_navs("input_panels", selected="scenario_panel")
             return
-        
+
         # guard 2
         msgs = []
         if data().empty:
             msgs.append("<b>Influent Data</b> can't be empty!<br>")
-        for id, tag in zip(["data_influentID", "data_conc_type", "data_time_type"], ["Influent Keyword", "Concentration Unit", "Time Unit"]):
+        for id, tag in zip(
+            ["data_influentID", "data_conc_type", "data_time_type"],
+            ["Influent Keyword", "Concentration Unit", "Time Unit"],
+        ):
             if not input.__dict__["_map"][id]():
                 msg = f"Please Specify <b>{tag}</b>!<br>"
                 msgs.append(msg)
         if msgs:
-            m = ui.modal(HTML("".join(["<h1>Insufficient Input!</h1>"]+ msgs)))
+            m = ui.modal(HTML("".join(["<h1>Insufficient Input!</h1>"] + msgs)))
             ui.modal_show(m)
             ui.update_navs("page", selected="input_tab")
             ui.update_navs("input_panels", selected="data_panel")
@@ -1411,7 +1545,7 @@ def server(input, output, session):
             ):
                 p.set(i, message=f"Calculating {scenario!r}")
                 scenario_adsorbates = scenario_data["adsorbates"]
-                #if scenario in simulations:
+                # if scenario in simulations:
                 #     continue
 
                 simulations.update({scenario: {"steps": {}}})
@@ -1597,7 +1731,7 @@ def server(input, output, session):
                                 "model": model,
                                 "output": output,
                                 "type": adsorbent["ads_type"],
-                                "column": column
+                                "column": column,
                             }
                         }
                         simulations[scenario]["steps"].update(simulation)
@@ -1959,12 +2093,13 @@ def server(input, output, session):
             out,
             x=input.simplot_x_axis(),
             y="concentration",
-            color="compound",
-            facet_col="scenario",
+            color=input.simplot_color(),
+            facet_col=None if input.simplot_overlay() else "scenario",
+            symbol="scenario" if input.simplot_overlay() else None,
             facet_row="step",
-            line_dash="type",
+            line_dash=input.simplot_dash(),
             height=int(GetSystemMetrics(1) * 0.7),
-            markers=input.simplot_marker(),
+            markers=input.simplot_marker() or input.simplot_overlay(),
             labels={
                 "time": input.data_time_type(),
                 "concentration": input.data_conc_type(),

@@ -1,13 +1,18 @@
 # README for Water Treatment Models
+forked from [USEPA/Water Treatment Models](https://github.com/USEPA/Water_Treatment_Models)
 
 Tools in this repository:
 
 1. Adsorption Model for Granular Activated Carbon (PSDM Folder)
 2. Ion Exchange Model (IonExchangeModel Folder)
-3. Graphical User Interface for Granular Activated Carbon Modeling (Shiny-GAC Folder)
-4. Graphical User Interface for Ion Exchange Modeling (Shiny-IEX Folder)
+3. Graphical User Interface for Granular Activated Carbon Modeling (ShinyPy-GAC Folder)
 
-Both tools #1 and #2 are programmed in Python. GUI for Ion Exchange Model was developed in R and requires RStudio or R/Shiny installed. Additional resources and information associated with either can be found in their respective folders. These tools focus on predicting water treatment unit operation effectiveness, specifically how well treatment technologies (Granular Activated Carbon and Ion Exchange Resins) will work for removing contaminants.
+Both tools #1 and #2 were programmed by the USEPA in Python. Minor changes were made to #1 to simplify setup as well as usage.
+The combined GUI for Ion Exchange Model and PSDM (#3) was newly developed in PYthon with [Shiny for Python](https://shiny.posit.co/py/api/core/). In contrast to the implementations of the USEPA, there is
+1. No need for R
+2. The possibility to model treatment trains
+
+These tools focus on predicting water treatment unit operation effectiveness, specifically how well treatment technologies (Granular Activated Carbon and Ion Exchange Resins) will work for removing contaminants.
 
 # Status
 
