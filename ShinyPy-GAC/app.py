@@ -607,7 +607,7 @@ simul_tab = ui.navset_tab(
         ui.card(
             ui.input_select(
                 "sel_run_scenario",
-                "Select Scenarios to Simulate / Plot / Save Results from",
+                "Select Scenarios to Simulate / Save Results from",
                 [],
                 multiple=True,
             )
@@ -626,6 +626,14 @@ simul_tab = ui.navset_tab(
             ui.card_header(
                 ui.popover(
                     icon_svg("gear"),
+                    ui.input_select(
+                                        "sel_plot_scenario",
+                                        "Select Scenarios to compare",
+                                        [],
+                                        multiple=True,
+                                    ),
+                    ui.input_checkbox("simplot_overlay_scenarios", "Overlay Scenarios", False),
+                    ui.input_checkbox("simplot_overlay_steps", "Overlay Steps", False),
                     ui.input_radio_buttons(
                         "simplot_x_axis",
                         "x-axis",
@@ -633,8 +641,6 @@ simul_tab = ui.navset_tab(
                         inline=True,
                     ),
                     ui.input_checkbox("simplot_marker", "Draw Marker", True),
-                    ui.input_checkbox("simplot_overlay_scenarios", "Overlay Scenarios", False),
-                    ui.input_checkbox("simplot_overlay_steps", "Overlay Steps", False),
                     ui.input_select(
                         "simplot_color",
                         "Color variable",
@@ -645,6 +651,8 @@ simul_tab = ui.navset_tab(
                         "Dash variable",
                         ["type", "compound", "scenario"],
                     ),
+                    ui.input_checkbox("simplot_title", "Show Title", True),
+                    ui.input_checkbox("simplot_logy", "Logarithmic y-Scale", False),
                     title="Adjust Plot",
                     placement="top",
                 ),
@@ -1426,6 +1434,7 @@ def server(input, output, session):
     def update_scenarios():
         choices = list(scenarios().keys())
         ui.update_select("sel_run_scenario", choices=choices)
+        ui.update_select("sel_plot_scenario", choices=choices, selected=choices)
         ui.update_selectize("sel_scenario", choices=choices)
 
     ################
@@ -2117,7 +2126,7 @@ def server(input, output, session):
         real_data = data()
 
         for simulation, sim_data in simulations.items():
-            if not simulation in input.sel_run_scenario():
+            if not simulation in input.sel_plot_scenario():
                 continue
             for step, step_data in sim_data["steps"].items():
                 df = step_data["output"].copy()
@@ -2155,6 +2164,8 @@ def server(input, output, session):
                 "time": input.data_time_type(),
                 "concentration": input.data_conc_type(),
             },
+            title = input.project_name() if input.simplot_title() else "",
+            log_y = input.simplot_logy()
         )
         return plot
 
