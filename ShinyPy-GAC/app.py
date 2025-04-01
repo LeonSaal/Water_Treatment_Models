@@ -607,7 +607,7 @@ simul_tab = ui.navset_tab(
         ui.card(
             ui.input_select(
                 "sel_run_scenario",
-                "Select Scenarios to Simulate / Save Results from",
+                "Select Scenarios to Simulate / Plot / Save Results from",
                 [],
                 multiple=True,
             )
@@ -633,7 +633,8 @@ simul_tab = ui.navset_tab(
                         inline=True,
                     ),
                     ui.input_checkbox("simplot_marker", "Draw Marker", True),
-                    ui.input_checkbox("simplot_overlay", "Overlay Scenarios", False),
+                    ui.input_checkbox("simplot_overlay_scenarios", "Overlay Scenarios", False),
+                    ui.input_checkbox("simplot_overlay_steps", "Overlay Steps", False),
                     ui.input_select(
                         "simplot_color",
                         "Color variable",
@@ -772,6 +773,8 @@ def server(input, output, session):
             "adsprops": adsprops(),
             "scenarios": scenarios(),
         }
+        # datas = {key: value() for key, value in input.__dict__["_map"].items() if key.startswith("data_")}
+        # print(datas)
         # with open("output.json", "w") as f:
         #     json.dump(output, f)
 
@@ -1729,7 +1732,29 @@ def server(input, output, session):
                                         rawdata_df=rawdata_df,
                                         **keywords,
                                     )
-                                    raw_output = model.run_psdm()
+                                    try:
+                                        raw_output = model.run_psdm()
+                                    except RuntimeError as e:
+                                        msg = HTML(
+                                            f"Something went terribly wrong!<br><i>{e}</i><br>Dumped input data to <b>error.xlsx</b> and <b>error.json</b>!<br>"
+                                        )
+                                        ui.notification_show(msg, type="error")
+                                        with pd.ExcelWriter("error.xlsx") as writer:
+                                            column_data.to_excel(
+                                                writer, sheet_name="column_data"
+                                            )
+                                            comp_data.to_excel(
+                                                writer, sheet_name="comp_data"
+                                            )
+                                            rawdata_df.to_excel(
+                                                writer, sheet_name="rawdata_df"
+                                            )
+                                            keywords.get("k_data").to_excel(writer, "k_data")
+                                        keywords.pop("k_data")
+                                        with open("error.json", "w") as f:
+                                            json.dump(keywords, f, indent=4)
+                                        break
+                                    
 
                                     if not raw_output:
                                         ui.notification_show(
@@ -2092,6 +2117,8 @@ def server(input, output, session):
         real_data = data()
 
         for simulation, sim_data in simulations.items():
+            if not simulation in input.sel_run_scenario():
+                continue
             for step, step_data in sim_data["steps"].items():
                 df = step_data["output"].copy()
                 df["step"] = step
@@ -2118,12 +2145,12 @@ def server(input, output, session):
             x=input.simplot_x_axis(),
             y="concentration",
             color=input.simplot_color(),
-            facet_col=None if input.simplot_overlay() else "scenario",
-            symbol="scenario" if input.simplot_overlay() else None,
-            facet_row="step",
+            facet_col=None if input.simplot_overlay_scenarios() else "scenario",
+            symbol="scenario" if input.simplot_overlay_scenarios() else None,
+            facet_row=None if input.simplot_overlay_steps() else "step",
             line_dash=input.simplot_dash(),
             height=int(GetSystemMetrics(1) * 0.7),
-            markers=input.simplot_marker() or input.simplot_overlay(),
+            markers=input.simplot_marker() or input.simplot_overlay_scenarios(),
             labels={
                 "time": input.data_time_type(),
                 "concentration": input.data_conc_type(),

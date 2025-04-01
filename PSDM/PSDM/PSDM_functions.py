@@ -250,8 +250,8 @@ def process_input_file(filename, data_sheet='data',\
     
     #resort index to makes sure things are in order
     rawdata_df = rawdata_df.sort_index()
-    rawdata_df[influent][rawdata_df[influent]==0.] = 0.001 #makes this value very small, but non-zero
-    rawdata_df = rawdata_df[[influent,effluent]]
+    #rawdata_df[influent][rawdata_df[influent]==0.] = 0.001 #makes this value very small, but non-zero
+    rawdata_df = rawdata_df[[influent,effluent]].interpolate(method="spline", axis=0, limit_direction="both", order=3)
     
     top_lvl = rawdata_df.columns.levels[0]
     new_lvl = []

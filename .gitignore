@@ -29,3 +29,5 @@ PSDM/PSDM/PSDM.egg-info/*
 nötig.png
 */*.egg-info/
 *.code-workspace
+PSDM/PSDM/PSDM copy.py
+error.json
